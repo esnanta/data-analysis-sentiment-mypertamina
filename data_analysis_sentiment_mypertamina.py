@@ -13,20 +13,23 @@ Original file is located at
 # Library
 """
 
-# 1. Import library
+# 1. Install library yang dibutuhkan
 !pip install google-play-scraper
 !pip install Sastrawi
 
+# 2. Import Library Utama
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import seaborn as sns
 import re
 import nltk
 import string
 import csv
 import requests
 
-# Download NLTK resources BEFORE importing word_tokenize
+# 3. Download NLTK resources BEFORE importing word_tokenize
 nltk.download('punkt')
 nltk.download('punkt_tab')
 nltk.download('stopwords')
@@ -34,32 +37,38 @@ nltk.download('stopwords')
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 
-# Mengimpor pustaka google_play_scraper untuk mengakses ulasan dan informasi aplikasi dari Google Play Store.
+# 4. Import Google Play Scraper untuk mengambil ulasan aplikasi
 from google_play_scraper import app, reviews, Sort, reviews_all
 
+# 5. Import Sastrawi untuk Stemming dan Stopword Removal
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 
+# 6. Import tambahan untuk pemrosesan teks dan visualisasi
 from io import StringIO
 from wordcloud import WordCloud
 from sklearn.preprocessing import LabelEncoder
 
-# Library untuk BoW
+# 7. Library untuk TF-IDF dan BoW
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
-import numpy as np
 
-# Library untuk Deep Learning
-import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout
-from tensorflow.keras.callbacks import EarlyStopping
+# 8. Model dan Evaluasi
+from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
+
+# 9. Word2Vec untuk Representasi Teks
+from gensim.models import Word2Vec
+
+# 10. For Downloading file
+from google.colab import files
 
 """# Pengumpulan Data
 
 1. Web scraping menggunakan Google Play Scraper.
 2. Dataset memiliki minimal 10.000 sampel.
-3. Pemberian label kelas sentimen berdasarkan rating (positif, negatif, netral).
+3. Pemberian label kelas sentimen berdasarkan leksikon Bahasa Indonesia (positif, negatif, netral).
 
 """
 
@@ -83,7 +92,10 @@ else:
     print("Dataset tidak memenuhi syarat.")
 
 # Simpan dataset ke CSV
-reviews_df.to_csv('playstore_reviews.csv', index=False, encoding='utf-8')
+reviews_df.to_csv('mypertamina_reviews.csv', index=False, encoding='utf-8')
+
+# Unduh file setelah disimpan
+files.download('mypertamina_reviews.csv')
 
 # Tampilkan datanya
 reviews_df.head()
@@ -194,7 +206,7 @@ clean_review_df['text_stopword'] = clean_review_df['text_tokenizingText'].apply(
 # Menggabungkan token-token menjadi kalimat dan menyimpannya di 'text_akhir'
 clean_review_df['text_akhir'] = clean_review_df['text_stopword'].apply(toSentence)
 
-"""# Pelabelan Data 1
+"""# Pelabelan Data
 
 1. Gunakan leksikon data positif dan negatif untuk Bahasa Indonesia
 2. Kolom sasaran adalah text_akhir
@@ -352,14 +364,6 @@ plt.show()
 1. Ekstraksi Fitur: Term Frequency-Inverse Document Frequency (TF-IDF)
 """
 
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.model_selection import train_test_split
-from sklearn.svm import SVC
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
-import seaborn as sns
-import matplotlib.pyplot as plt
-
 # 1. Menggunakan TF-IDF
 vectorizer = TfidfVectorizer()
 X = vectorizer.fit_transform(clean_review_df['text_akhir'])
@@ -409,34 +413,19 @@ plt.tight_layout()
 plt.show()
 
 """Kesimpulan :
-1. Multinomial Naive Bayes (MNB)
-    * Cenderung memiliki recall tinggi untuk kelas 0 (negative) tetapi sangat rendah pada kelas 1 (positive).
-    * F1-score untuk kelas 1 hanya 0.41, yang menunjukkan kesulitan model dalam mengenali kelas ini.
-2. RandomForestClassifier (RFC)
-    * Precision dan recall lebih seimbang di semua kelas, terutama kelas 1 yang sebelumnya sulit dikenali oleh MNB.
-    * F1-score lebih tinggi di semua kelas, yang berarti model lebih efektif dalam menangkap pola dari data.
-
-RandomForestClassifier lebih unggul dibandingkan Multinomial Naive Bayes dalam hal akurasi dan keseimbangan prediksi antar kelas.
-
-✅ RFC lebih mampu menangani ketidakseimbangan data, terutama dalam mengenali kelas positive (1) yang sebelumnya sulit dideteksi oleh Naive Bayes.
-
-✅ Jika ingin model yang lebih akurat dan stabil, RandomForestClassifier adalah pilihan yang lebih baik dalam kasus ini.
-
-Saran
-
-Bisa mencoba hyperparameter tuning untuk RFC, seperti n_estimators, max_depth, dan min_samples_split, agar performa lebih optimal.
-Menggunakan teknik balancing tambahan seperti SMOTE jika ingin meningkatkan recall pada kelas positif lebih lanjut.
+1. Akurasi Model
+    * SVM mencapai akurasi 95.23%, lebih tinggi dibandingkan Random Forest yang memiliki akurasi 91.62%.
+    * Perbedaan ini menunjukkan bahwa SVM lebih efektif dalam menangani dataset ini, kemungkinan karena sifatnya yang mencari hyperplane optimal dalam ruang vektor tinggi yang dihasilkan oleh TF-IDF.
+2. Performa berdasarkan Precision, Recall, dan F1-Score
+    * SVM menunjukkan performa yang lebih stabil di seluruh kelas dengan precision, recall, dan f1-score yang cukup seimbang.
+    * Random Forest memiliki kelemahan dalam menangani kelas tertentu, terutama kelas 2 (label ketiga) yang memiliki recall lebih rendah (80% dibandingkan 93% pada SVM).
+    * SVM lebih baik dalam menjaga keseimbangan antar kelas, sedangkan Random Forest lebih cenderung kuat dalam menangani kelas mayoritas (kelas 0 dan 1) tetapi mengalami penurunan performa pada kelas 2.
+3. Analisis Confusion Matrix
+    * Dari Confusion Matrix, terlihat bahwa SVM lebih sedikit melakukan kesalahan klasifikasi dibandingkan Random Forest.
+    * Random Forest cenderung mengalami kesulitan dalam membedakan kelas minoritas, khususnya kelas 2.
 
 2. Ekstraksi Fitur: Word2Vec
 """
-
-from gensim.models import Word2Vec
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
-import seaborn as sns
-import matplotlib.pyplot as plt
-import numpy as np
 
 # 1. Menggunakan Word2Vec untuk ekstraksi fitur
 sentences = [text.split() for text in clean_review_df['text_akhir']]
@@ -446,10 +435,14 @@ def get_word2vec_features(text):
     words = text.split()
     word_vectors = [w2v_model.wv[word] for word in words if word in w2v_model.wv]
     if len(word_vectors) == 0:
-        return np.zeros(110)
+        return np.zeros(100)  # Sesuaikan dengan vector_size=100
     return np.mean(word_vectors, axis=0)
 
-X = np.array([get_word2vec_features(text) for text in clean_review_df['text_akhir']])
+# Menggunakan list comprehension dengan dtype=object agar bentuk array tidak bermasalah
+features_list = [get_word2vec_features(text) for text in clean_review_df['text_akhir']]
+
+# Konversi ke numpy array dengan vstack untuk memastikan bentuk (n_samples, vector_size)
+X = np.vstack(features_list)
 y = clean_review_df['label']
 
 # 2. Membagi Dataset (80% training, 20% testing)
@@ -473,3 +466,29 @@ plt.xlabel("Prediksi")
 plt.ylabel("Aktual")
 plt.title("Confusion Matrix - Random Forest dengan Word2Vec")
 plt.show()
+
+"""# Summary
+
+Setelah mengganti metode ekstraksi fitur dari TF-IDF ke Word2Vec, terlihat adanya perubahan signifikan pada performa model Random Forest Classifier (RFC).
+
+1. Perbandingan Akurasi
+    * Random Forest dengan Word2Vec memiliki akurasi 85.08%, yang lebih rendah dibandingkan TF-IDF (91.62%).
+    * Penurunan ini menunjukkan bahwa Word2Vec tidak menangkap fitur yang cukup informatif untuk model Random Forest dalam tugas klasifikasi ini.
+2. Analisis Precision, Recall, dan F1-Score
+    * Kelas 0 (label mayoritas) masih memiliki performa terbaik (precision: 82%, recall: 96%), tetapi terjadi penurunan recall pada kelas minoritas (1 dan 2).
+    * Kelas 1 mengalami penurunan recall dari 90% (TF-IDF) menjadi 77%, yang berarti banyak sampel dari kelas ini diklasifikasikan salah.
+    * Kelas 2 mengalami penurunan recall dari 80% menjadi 68%, yang menunjukkan kesulitan model dalam mengenali pola di kelas ini.
+3. Analisis Kesalahan dengan Confusion Matrix
+    * Kesalahan klasifikasi meningkat, terutama pada kelas 1 dan 2.
+    * Word2Vec yang menggunakan representasi berbasis rata-rata vektor kata mungkin kehilangan informasi penting, berbeda dengan TF-IDF yang tetap mempertahankan bobot berdasarkan kepentingan kata dalam dokumen.
+4. Penyebab Potensial Penurunan Performa
+    * Word2Vec bersifat lebih kontekstual, tetapi model Random Forest tidak memiliki mekanisme untuk memahami hubungan sekuensial antar kata.
+    * Informasi frekuensi kata hilang karena Word2Vec hanya mengambil mean dari embedding kata, yang bisa menyebabkan informasi spesifik untuk kategori tertentu menjadi kabur.
+    * Konteks sintaksis dan semantik mungkin tidak optimal karena Word2Vec lebih cocok untuk model berbasis deep learning seperti LSTM atau CNN dibandingkan model berbasis pohon keputusan seperti Random Forest.
+5. Kesimpulan Akhir dan Rekomendasi
+    * TF-IDF lebih unggul dibandingkan Word2Vec untuk model Random Forest, karena lebih efektif dalam merepresentasikan fitur teks dalam bentuk vektor numerik yang sesuai dengan pendekatan berbasis pohon keputusan.
+    * Jika tetap ingin menggunakan Word2Vec, lebih baik mengganti model Random Forest dengan model deep learning seperti LSTM, CNN, atau Transformer-based models yang lebih cocok untuk menangkap hubungan antar kata dalam embedding.
+    * Alternatif lain adalah mencoba pendekatan Hybrid TF-IDF + Word2Vec untuk melihat apakah kombinasi kedua teknik ini dapat meningkatkan performa model.
+
+Penggunaan Word2Vec sebagai representasi fitur dalam Random Forest tidak lebih baik dibandingkan TF-IDF, dengan akurasi yang lebih rendah dan kesalahan klasifikasi yang lebih tinggi. Untuk klasifikasi berbasis Random Forest, TF-IDF tetap menjadi pilihan yang lebih efektif.
+"""
