@@ -14,8 +14,8 @@ Original file is located at
 """
 
 # 1. Install library yang dibutuhkan
-!pip install google-play-scraper
-!pip install Sastrawi
+# !pip install google-play-scraper
+# !pip install Sastrawi
 
 # 2. Import Library Utama
 import pandas as pd
@@ -28,6 +28,8 @@ import nltk
 import string
 import csv
 import requests
+import pickle
+import os
 
 # 3. Download NLTK resources BEFORE importing word_tokenize
 nltk.download('punkt')
@@ -62,7 +64,15 @@ from sklearn.metrics import classification_report, accuracy_score, confusion_mat
 from gensim.models import Word2Vec
 
 # 10. For Downloading file
-from google.colab import files
+# from google.colab import files
+
+# 11. Cache for stemming
+from functools import lru_cache
+
+# 12. SMOTE
+from imblearn.over_sampling import SMOTE
+
+# !pip3 freeze > requirements.txt
 
 """# Pengumpulan Data
 
@@ -73,31 +83,66 @@ from google.colab import files
 """
 
 # 2. Data Gathering
-# Scraping ulasan aplikasi MyPertamina
-scrapreview = reviews_all(
-    'com.dafturn.mypertamina',  # ID aplikasi
-    lang='id',                  # Bahasa ulasan
-    country='id',               # Negara
-    sort=Sort.MOST_RELEVANT,    # Urutan ulasan
-    count=15000                 # Maksimum jumlah ulasan yang diambil
-)
+# URL file CSV di GitHub
+github_url = "https://raw.githubusercontent.com/esnanta/data-analysis-sentiment-mypertamina/main/dataset/mypertamina_reviews.csv"
+csv_filename = "mypertamina_reviews.csv"
 
-# Konversi hasil scraping ke DataFrame
-reviews_df = pd.DataFrame(scrapreview)
+# Coba mengunduh file dari GitHub
+def download_csv_from_github(url, filename):
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Cek jika terjadi error dalam request
+        with open(filename, "wb") as file:
+            file.write(response.content)
+        print(f"✅ File '{filename}' berhasil diunduh dari GitHub.")
+        return True
+    except requests.exceptions.RequestException as e:
+        print(f"⚠️ Gagal mengunduh file dari GitHub: {e}")
+        return False
 
-# Pastikan dataset memiliki minimal 10.000 sampel
-if len(reviews_df) >= 10000:
-    print("Dataset memenuhi syarat: >= 10.000 sampel.")
+# Cek apakah file ada secara lokal atau coba unduh dari GitHub
+if os.path.exists(csv_filename) or download_csv_from_github(github_url, csv_filename):
+    print(f"📂 Menggunakan file '{csv_filename}'...")
+    try:
+        reviews_df = pd.read_csv(csv_filename, encoding="utf-8")
+
+        # Pastikan dataset memiliki minimal 10.000 sampel
+        if len(reviews_df) >= 10000:
+            print("✅ Dataset memenuhi syarat: >= 10.000 sampel.")
+        else:
+            print("⚠️ Dataset kurang dari 10.000 sampel. Perlu scraping ulang...")
+            reviews_df = None  # Kosongkan dataframe untuk memicu scraping ulang
+    except Exception as e:
+        print(f"⚠️ Gagal membaca file CSV: {e}")
+        reviews_df = None  # Jika error saat membaca, lakukan scraping ulang
 else:
-    print("Dataset tidak memenuhi syarat.")
+    print(f"❌ File '{csv_filename}' tidak ditemukan dan tidak bisa diunduh.")
+    reviews_df = None  # Jika gagal mengunduh, lakukan scraping ulang
 
-# Simpan dataset ke CSV
-reviews_df.to_csv('mypertamina_reviews.csv', index=False, encoding='utf-8')
+# Jika dataset tidak ada atau tidak memenuhi syarat, lakukan scraping ulang
+if reviews_df is None or len(reviews_df) < 10000:
+    print("🔄 Melakukan scraping ulang dari Google Play Store...")
+    scrapreview = reviews_all(
+        'com.dafturn.mypertamina',  # ID aplikasi
+        lang='id',                  # Bahasa ulasan
+        country='id',               # Negara
+        sort=Sort.MOST_RELEVANT,    # Urutan ulasan
+        count=20000                 # Maksimum jumlah ulasan yang diambil
+    )
 
-# Unduh file setelah disimpan
-files.download('mypertamina_reviews.csv')
 
-# Tampilkan datanya
+    # Konversi hasil scraping ke DataFrame
+    reviews_df = pd.DataFrame(scrapreview)
+
+    # Pastikan dataset memiliki minimal 10.000 sampel
+    if len(reviews_df) >= 10000:
+        print("✅ Dataset memenuhi syarat: >= 10.000 sampel. Menyimpan ke CSV...")
+        reviews_df.to_csv(csv_filename, index=False, encoding="utf-8")
+        # files.download('mypertamina_reviews.csv')
+    else:
+        print("❌ Dataset tidak memenuhi syarat. Scraping gagal menghasilkan cukup data.")
+
+# Tampilkan beberapa baris pertama
 reviews_df.head()
 
 # Tampilkan info data
@@ -106,10 +151,10 @@ reviews_df.info()
 # Hapus baris yang memiliki nilai yang hilang
 clean_review_df = reviews_df.dropna()
 
-# Hapus baris duplikat
-clean_review_df = reviews_df.drop_duplicates()
+# Hapus baris duplikat (menggunakan hasil dropna sebelumnya)
+clean_review_df = clean_review_df.drop_duplicates()
 
-# Tampilkan
+# Tampilkan informasi dataset setelah dibersihkan
 clean_review_df.info()
 
 """# Preprocessing Data
@@ -117,7 +162,6 @@ clean_review_df.info()
 2. Case folding (lowercase)
 3. Tokenization
 4. Stopword Removal
-5. Stemming
 """
 
 # 3. Processing Data
@@ -128,7 +172,7 @@ def cleaningText(text):
     text = re.sub(r"http\S+", '', text) # menghapus link
     text = re.sub(r'[0-9]+', '', text) # menghapus angka
     text = re.sub(r'[^\w\s]', '', text) # menghapus karakter selain huruf dan angka
-
+    text = re.sub(r'(.)\1+', r'\1', text)  # Hilangkan karakter berulang (contoh: "baguuuuus" -> "bagus"),
     text = text.replace('\n', ' ') # mengganti baris baru dengan spasi
     text = text.translate(str.maketrans('', '', string.punctuation)) # menghapus semua tanda baca
     text = text.strip(' ') # menghapus karakter spasi dari kiri dan kanan teks
@@ -142,39 +186,69 @@ def tokenizingText(text): # Memecah atau membagi string, teks menjadi daftar tok
     text = word_tokenize(text)
     return text
 
-def filteringText(text): # Menghapus stopwords dalam teks
+def filteringText(text):
+    # Menggabungkan stopwords Bahasa Indonesia dan Bahasa Inggris
     listStopwords = set(stopwords.words('indonesian'))
     listStopwords_en = set(stopwords.words('english'))
     listStopwords.update(listStopwords_en)
-    listStopwords.update(['iya','yaa','gak','nya','na','sih','ku',"di","ga","ya","gaa","loh","kah","woi","woii","woy"])
-    filtered = []
-    for txt in text:
-        if txt not in listStopwords:
-            filtered.append(txt)
-    text = filtered
-    return text
 
-def stemmingText(text): # Mengurangi kata ke bentuk dasarnya yang menghilangkan imbuhan awalan dan akhiran atau ke akar kata
-    # Membuat objek stemmer
-    factory = StemmerFactory()
-    stemmer = factory.create_stemmer()
+    # Tambahan stopwords khusus untuk analisis sentimen ulasan MyPertamina
+    # Alasan:
+    # - Kata-kata seperti "pertamina", "aplikasi", "mypertamina", dan "update" muncul secara konsisten di setiap ulasan
+    #   sehingga tidak memberikan informasi sentiment spesifik.
+    # - Ekspresi informal dan filler seperti "iya", "gak", "sih", "dong", "deh", "nih", dll. umumnya tidak
+    #   memberikan konteks emosional yang signifikan.
+    # - Penambahan beberapa variasi kata negatif/informal seperti "nggak" dan kata penguat umum yang sering muncul.
 
-    # Memecah teks menjadi daftar kata
-    words = text.split()
+    filler_stopwords = [
+        "iya", "yaa", "gak", "nggak", "nya", "na", "sih", "ku", "di", "ga", "ya",
+        "gaa", "loh", "kah", "woi", "woii", "woy", "dong", "deh", "nih", "ap",
+        "tp", "sy", "sdh", "tdk", "gimana", "kali", "ok", "tolong", "moga", "blm",
+        "lg", "pa","sat", "min", "mhn", "kartu", "hp", "stnk", "mohon", "cs", "bm",
+        "klo", "masa", "kok", "knp", "kenapa", "gitu", "liat", "lihat", "dapet",
+        "dapat", "yah", "gmn", "utk", "trus"
+    ]
 
-    # Menerapkan stemming pada setiap kata dalam daftar
-    stemmed_words = [stemmer.stem(word) for word in words]
+    general_stopwords = [
+        "update", "pertamina", "aplikasi", "mypertamina",
+        "aja", "udah", "belum", "sekali", "pakai", "pake", "data", "buka",
+        "scan", "upload", "baru", "versi", "spbu", "struk" , "foto", "baca",
+        "coba", "baru", "daftar", "masuk", "login", "barcode", "undian", "kupon",
+        "sistem", "akun", "ktp", "bayar", "hasil", "tingkat", "kendaraan",
+        "transaksi", "energi", "proses", "ulang", "moga", "ternyata", "kode",
+        "beli", "kalo", "habis", "pakai", "bikin", "mobil", "poin",
+        "verifikasi", "foto","baca","baru", "baik", "subsidi", "otp",
+        "download", "unduh", "verifikasi", "info", "informasi",
+        "nik", "tulis", "nomor", "orang", "koneksi", "bilang", "apk", "server"
+    ]
 
-    # Menggabungkan kata-kata yang telah distem
-    stemmed_text = ' '.join(stemmed_words)
+    listStopwords.update(filler_stopwords)
+    listStopwords.update(general_stopwords)
 
-    return stemmed_text
+    filtered = [word for word in text if word not in listStopwords]
+    return filtered
+
+# Membuat objek stemmer hanya sekali
+factory = StemmerFactory()
+stemmer = factory.create_stemmer()
+
+@lru_cache(maxsize=10000)  # Cache untuk 10.000 kata unik
+def cached_stem(word: str) -> str:
+    return stemmer.stem(word)
+
+def stemmingText(words: list) -> list:
+    return [cached_stem(word) for word in words]  # Proses setiap kata dengan caching
 
 def toSentence(list_words): # Mengubah daftar kata menjadi kalimat
     sentence = ' '.join(word for word in list_words)
     return sentence
 
-slangwords = {"@": "di", "abis": "habis", "wtb": "beli", "masi": "masih", "wts": "jual", "wtt": "tukar", "bgt": "banget", "maks": "maksimal"}
+slangwords = {"@": "di", "abis": "habis", "wtb": "beli", "masi": "masih",
+              "wts": "jual", "wtt": "tukar", "bgt": "banget",
+              "maks": "maksimal", "aja":"saja", "yg":"yang",
+			        "gak":"tidak","gk":"tidak", "ngak":"tidak", "maf":"maaf",
+              "sesuai banget":"sangat sesuai", "pas":"sesuai"}
+
 def fix_slangwords(text):
     words = text.split()
     fixed_words = []
@@ -188,28 +262,40 @@ def fix_slangwords(text):
     fixed_text = ' '.join(fixed_words)
     return fixed_text
 
-# Membersihkan teks dan menyimpannya di kolom 'text_clean'
+"""# Preprocessing
+1. Gunakan 'text_final' untuk model pra-latih seperti IndoBERT.
+2. Gunakan 'text_akhir' untuk proses lexicon-based sentiment analysis dan model klasik.
+3. Stemming bisa diabaikan jika menggunakan lexicon-based sentiment analysis dengan kamus yang tidak berbasis kata dasar.
+"""
+
+# 1. Cleaning: Hapus karakter khusus, URL, angka, dsb.
 clean_review_df['text_clean'] = clean_review_df['content'].apply(cleaningText)
 
-# Mengubah huruf dalam teks menjadi huruf kecil dan menyimpannya di 'text_casefoldingText'
-clean_review_df['text_casefoldingText'] = clean_review_df['text_clean'].apply(casefoldingText)
+# 2. Normalisasi: Ubah semua teks menjadi huruf kecil
+clean_review_df['text_casefolding'] = clean_review_df['text_clean'].apply(casefoldingText)
 
-# Mengganti kata-kata slang dengan kata-kata standar dan menyimpannya di 'text_slangwords'
-clean_review_df['text_slangwords'] = clean_review_df['text_casefoldingText'].apply(fix_slangwords)
+# 3. Perbaikan Slang: Ganti kata-kata slang dengan bentuk standarnya
+clean_review_df['text_slangwords'] = clean_review_df['text_casefolding'].apply(fix_slangwords)
 
-# Memecah teks menjadi token (kata-kata) dan menyimpannya di 'text_tokenizingText'
-clean_review_df['text_tokenizingText'] = clean_review_df['text_slangwords'].apply(tokenizingText)
+# --- Persiapan Teks untuk Lexicon-Based & Model Klasik ---
+# 4. Tokenisasi: Memecah teks menjadi token (kata)
+clean_review_df['text_tokenized'] = clean_review_df['text_slangwords'].apply(tokenizingText)
 
-# Menghapus kata-kata stop (kata-kata umum) dan menyimpannya di 'text_stopword'
-clean_review_df['text_stopword'] = clean_review_df['text_tokenizingText'].apply(filteringText)
+# 5. Filtering: Hapus stopwords menggunakan fungsi filteringText
+clean_review_df['text_filtered'] = clean_review_df['text_tokenized'].apply(filteringText)
 
-# Menggabungkan token-token menjadi kalimat dan menyimpannya di 'text_akhir'
-clean_review_df['text_akhir'] = clean_review_df['text_stopword'].apply(toSentence)
+# 6. (Opsional) Stemming: Hanya jika ingin digunakan untuk model klasik seperti SVM/RandomForest
+# clean_review_df['text_stemmed'] = clean_review_df['text_filtered'].apply(stemmingText)
+
+# 7. Gabungkan token menjadi kalimat kembali
+# Kolom untuk lexicon-based labeling atau model klasik (misalnya menggunakan TF-IDF)
+clean_review_df['text_akhir'] = clean_review_df['text_filtered'].apply(toSentence)
 
 """# Pelabelan Data
 
 1. Gunakan leksikon data positif dan negatif untuk Bahasa Indonesia
 2. Kolom sasaran adalah text_akhir
+3. Distribusi Sentimen
 
 
 """
@@ -277,7 +363,7 @@ results = clean_review_df['text_akhir'].apply(sentiment_analysis_lexicon_indones
 results = list(zip(*results))
 clean_review_df['polarity_score'] = results[0]
 clean_review_df['polarity'] = results[1]
-print(clean_review_df['polarity'].value_counts())
+clean_review_df['polarity'].value_counts()
 
 label_encoder = LabelEncoder()
 
@@ -288,7 +374,7 @@ clean_review_df['label'] = label_encoder.fit_transform(clean_review_df['polarity
 print(dict(zip(label_encoder.classes_, label_encoder.transform(label_encoder.classes_))))
 
 # Tampilkan 5 baris teratas dengan label
-clean_review_df[['polarity', 'label']].head()
+clean_review_df[['content','polarity', 'label']].head()
 
 # Calculate value counts of 'polarity' column
 polarity_counts = clean_review_df['polarity'].value_counts()
@@ -314,6 +400,8 @@ plt.axis('equal')
 
 # Show the plot
 plt.show()
+
+"""Distribusi menunjukkan bahwa persepsi pengguna terhadap MyPertamina cenderung beragam, dengan mayoritas ulasan bersifat netral hingga negatif. Hal ini bisa menjadi masukan bagi pengembang aplikasi untuk meningkatkan pengalaman pengguna agar lebih banyak ulasan positif di masa mendatang."""
 
 # Function to generate word cloud (no display inside the function)
 def generate_wordcloud(text):
@@ -341,20 +429,21 @@ fig = plt.figure(figsize=(12, 6))  # Adjust figure size
 gs = gridspec.GridSpec(1, 3, width_ratios=[1, 1, 1])  # 1 row, 3 columns
 
 # Plotting the word clouds
-ax1 = plt.subplot(gs[0])
-ax1.imshow(positive_wc, interpolation='bilinear')
-ax1.set_title('Positive', fontsize=12)
-ax1.axis("off")
 
-ax2 = plt.subplot(gs[1])
+ax2 = plt.subplot(gs[0])
 ax2.imshow(negative_wc, interpolation='bilinear')
 ax2.set_title('Negative', fontsize=12)
 ax2.axis("off")
 
-ax3 = plt.subplot(gs[2])
+ax3 = plt.subplot(gs[1])
 ax3.imshow(neutral_wc, interpolation='bilinear')
 ax3.set_title('Neutral', fontsize=12)
 ax3.axis("off")
+
+ax1 = plt.subplot(gs[2])
+ax1.imshow(positive_wc, interpolation='bilinear')
+ax1.set_title('Positive', fontsize=12)
+ax1.axis("off")
 
 plt.tight_layout()  # Adjust layout to prevent labels from overlapping
 plt.suptitle("Sentiment Analysis Word Clouds", fontsize=16)  # Overall title
@@ -364,131 +453,242 @@ plt.show()
 1. Ekstraksi Fitur: Term Frequency-Inverse Document Frequency (TF-IDF)
 """
 
-# 1. Menggunakan TF-IDF
-vectorizer = TfidfVectorizer()
+# 1. Ekstraksi Fitur dengan TF-IDF dengan parameter yang diperbarui
+vectorizer = TfidfVectorizer(ngram_range=(1,2), max_features=5000, min_df=5)
 X = vectorizer.fit_transform(clean_review_df['text_akhir'])
 y = clean_review_df['label']
 
-# 2. Membagi Dataset (80% training, 20% testing)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# 2. Bagi dataset menjadi training dan testing
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y  # stratify disarankan jika ingin pembagian kelas seimbang
+)
 
-# 3. Model 1: Support Vector Machine
-svm_model = SVC(kernel='linear', random_state=42)
-svm_model.fit(X_train, y_train)
+# 3. Karena X_train berupa sparse matrix, konversi ke dense untuk SMOTE
+X_train_dense = X_train.toarray()
 
-# 4. Model 2: RandomForestClassifier
-rf_model = RandomForestClassifier(n_estimators=110, random_state=42, class_weight='balanced')
-rf_model.fit(X_train, y_train)
+# 4. Terapkan SMOTE pada data training
+smote = SMOTE(random_state=42)
+X_train_res, y_train_res = smote.fit_resample(X_train_dense, y_train)
 
-# 5. Evaluasi Model SVM
-y_pred_svm = svm_model.predict(X_test)
+# 5. Ubah X_test menjadi dense untuk konsistensi
+X_test_dense = X_test.toarray()
+
+# --- Evaluasi Model SVM ---
+# 6. Model SVM dengan class_weight='balanced'
+svm_model_tfidf = SVC(kernel='linear', class_weight='balanced', random_state=42)
+svm_model_tfidf.fit(X_train_res, y_train_res)
+
+# 7. Evaluasi Model SVM
+y_pred_svm = svm_model_tfidf.predict(X_test_dense)
 accuracy_svm = accuracy_score(y_test, y_pred_svm)
-print("Akurasi Model (Support Vector Machine):", accuracy_svm)
-print("\nLaporan Klasifikasi (SVM):\n", classification_report(y_test, y_pred_svm))
+print("Akurasi Model (SVM) dengan SMOTE:", accuracy_svm)
+print("\nLaporan Klasifikasi (SVM) dengan SMOTE:\n", classification_report(y_test, y_pred_svm))
 
-# 6. Evaluasi Model RandomForest
-y_pred_rf = rf_model.predict(X_test)
+# --- Evaluasi Model RandomForest ---
+# 8. Model RandomForest dengan class_weight='balanced'
+rf_model_tfidf = RandomForestClassifier(n_estimators=400, random_state=42, class_weight='balanced')
+rf_model_tfidf.fit(X_train_res, y_train_res)
+
+# 9. Evaluasi Model RandomForest
+y_pred_rf = rf_model_tfidf.predict(X_test_dense)
 accuracy_rf = accuracy_score(y_test, y_pred_rf)
-print("Akurasi Model (RandomForestClassifier):", accuracy_rf)
-print("\nLaporan Klasifikasi (Random Forest):\n", classification_report(y_test, y_pred_rf))
+print("Akurasi Model (RandomForest) dengan SMOTE:", accuracy_rf)
+print("\nLaporan Klasifikasi (RandomForest) dengan SMOTE:\n", classification_report(y_test, y_pred_rf))
 
-# 7. Visualisasi Confusion Matrix
-plt.figure(figsize=(12, 5))
-
-plt.subplot(1, 2, 1)
+# --- Menampilkan Confusion Matrix secara berdampingan ---
 cm_svm = confusion_matrix(y_test, y_pred_svm)
-sns.heatmap(cm_svm, annot=True, fmt='d', cmap='Blues')
-plt.xlabel("Prediksi")
-plt.ylabel("Aktual")
-plt.title("Confusion Matrix - SVM")
-
-plt.subplot(1, 2, 2)
 cm_rf = confusion_matrix(y_test, y_pred_rf)
-sns.heatmap(cm_rf, annot=True, fmt='d', cmap='Oranges')
-plt.xlabel("Prediksi")
-plt.ylabel("Aktual")
-plt.title("Confusion Matrix - Random Forest")
 
-plt.tight_layout()
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+# Confusion Matrix untuk Model SVM
+sns.heatmap(cm_svm, annot=True, fmt='d', cmap='Blues', ax=axes[0])
+axes[0].set_title("Confusion Matrix - SVM + TF-IDF")
+axes[0].set_xlabel("Prediksi")
+axes[0].set_ylabel("Aktual")
+
+# Confusion Matrix untuk Model RandomForest
+sns.heatmap(cm_rf, annot=True, fmt='d', cmap='Oranges', ax=axes[1])
+axes[1].set_title("Confusion Matrix - RandomForest + TF-IDF")
+axes[1].set_xlabel("Prediksi")
+axes[1].set_ylabel("Aktual")
+
+plt.tight_layout()  # Agar plot tidak saling tumpang tindih
 plt.show()
 
-"""Kesimpulan :
-1. Akurasi Model
-    * SVM mencapai akurasi 95.23%, lebih tinggi dibandingkan Random Forest yang memiliki akurasi 91.62%.
-    * Perbedaan ini menunjukkan bahwa SVM lebih efektif dalam menangani dataset ini, kemungkinan karena sifatnya yang mencari hyperplane optimal dalam ruang vektor tinggi yang dihasilkan oleh TF-IDF.
-2. Performa berdasarkan Precision, Recall, dan F1-Score
-    * SVM menunjukkan performa yang lebih stabil di seluruh kelas dengan precision, recall, dan f1-score yang cukup seimbang.
-    * Random Forest memiliki kelemahan dalam menangani kelas tertentu, terutama kelas 2 (label ketiga) yang memiliki recall lebih rendah (80% dibandingkan 93% pada SVM).
-    * SVM lebih baik dalam menjaga keseimbangan antar kelas, sedangkan Random Forest lebih cenderung kuat dalam menangani kelas mayoritas (kelas 0 dan 1) tetapi mengalami penurunan performa pada kelas 2.
-3. Analisis Confusion Matrix
-    * Dari Confusion Matrix, terlihat bahwa SVM lebih sedikit melakukan kesalahan klasifikasi dibandingkan Random Forest.
-    * Random Forest cenderung mengalami kesulitan dalam membedakan kelas minoritas, khususnya kelas 2.
+"""2. Ekstraksi Fitur: Word2Vec"""
 
-2. Ekstraksi Fitur: Word2Vec
-"""
-
-# 1. Menggunakan Word2Vec untuk ekstraksi fitur
+# 1. Ekstraksi Fitur dengan Word2Vec
 sentences = [text.split() for text in clean_review_df['text_akhir']]
 w2v_model = Word2Vec(sentences, vector_size=100, window=5, min_count=2, workers=4)
 
 def get_word2vec_features(text):
     words = text.split()
     word_vectors = [w2v_model.wv[word] for word in words if word in w2v_model.wv]
+    if not word_vectors:
+        return np.zeros(100)
+    return np.mean(word_vectors, axis=0)
+
+features_list = [get_word2vec_features(text) for text in clean_review_df['text_akhir']]
+X = np.vstack(features_list)
+y = clean_review_df['label']
+
+# 2. Bagi dataset menjadi training dan testing
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# 3. Terapkan SMOTE pada data training (Word2Vec sudah dense)
+smote = SMOTE(random_state=42)
+X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
+
+# 4. Model RandomForest dengan class_weight='balanced'
+rf_model_word2vec = RandomForestClassifier(n_estimators=100, random_state=42, class_weight='balanced')
+rf_model_word2vec.fit(X_train_res, y_train_res)
+
+# 5. Evaluasi Model RandomForest dengan Word2Vec
+y_pred_rf = rf_model_word2vec.predict(X_test)
+accuracy_rf = accuracy_score(y_test, y_pred_rf)
+print("Akurasi Model (RandomForest dengan Word2Vec & SMOTE):", accuracy_rf)
+print("\nLaporan Klasifikasi (RandomForest dengan Word2Vec & SMOTE):\n", classification_report(y_test, y_pred_rf))
+
+# Tambahkan Confusion Matrix
+cm_rf = confusion_matrix(y_test, y_pred_rf)
+plt.figure(figsize=(6,5))
+sns.heatmap(cm_rf, annot=True, fmt='d', cmap='Oranges')
+plt.title("Confusion Matrix - RandomForest + Word2Vec")
+plt.xlabel("Prediksi")
+plt.ylabel("Aktual")
+plt.show()
+
+"""# Testing
+Output berupa kelas kategorikal (contoh: negatif, netral, dan positif).
+"""
+
+# Simpan model SVM dengan TF-IDF
+with open('svm_model_tfidf.pkl', 'wb') as file:
+    pickle.dump(svm_model_tfidf, file)
+
+# Simpan model Random Forest dengan TF-IDF
+with open('rf_model_tfidf.pkl', 'wb') as file:
+    pickle.dump(rf_model_tfidf, file)
+
+# Simpan model Random Forest dengan Word2Vec
+with open('rf_model_word2vec.pkl', 'wb') as file:
+    pickle.dump(rf_model_word2vec, file)
+
+# Simpan TF-IDF Vectorizer
+with open('tfidf_vectorizer.pkl', 'wb') as vectorizer_file:
+    pickle.dump(vectorizer, vectorizer_file)
+
+# Simpan Word2Vec model
+w2v_model.save("word2vec_model.bin")
+
+print("Semua model telah disimpan!\n")
+
+# ========================
+# MEMUAT KEMBALI MODEL
+# ========================
+
+# Load model SVM TF-IDF
+with open('svm_model_tfidf.pkl', 'rb') as file:
+    loaded_svm_model_tfidf = pickle.load(file)
+
+# Load model Random Forest TF-IDF
+with open('rf_model_tfidf.pkl', 'rb') as file:
+    loaded_rf_model_tfidf = pickle.load(file)
+
+# Load model Random Forest Word2Vec
+with open('rf_model_word2vec.pkl', 'rb') as file:
+    loaded_rf_model_word2vec = pickle.load(file)
+
+# Load TF-IDF Vectorizer
+with open('tfidf_vectorizer.pkl', 'rb') as vectorizer_file:
+    loaded_vectorizer = pickle.load(vectorizer_file)
+
+# Load Word2Vec model
+loaded_w2v_model = Word2Vec.load("word2vec_model.bin")
+
+
+# ========================
+# INFERENCE (PREDIKSI)
+# ========================
+
+# Contoh review baru yang akan diprediksi
+new_reviews = [
+    "Aplikasi ini sangat jelek, banyak bug",      # Negatif
+    "Saya sangat suka aplikasi ini, keren!",      # Positif
+    "Aplikasinya biasa saja, tidak buruk",        # Netral
+    "Banyak fitur yang tidak berfungsi",          # Negatif
+    "Aplikasi sangat membantu pekerjaan saya",    # Positif
+    "Tidak terlalu bagus tapi bisa digunakan"     # Netral
+]
+
+# Transformasi review baru dengan TF-IDF dan konversi ke dense array
+X_new_tfidf = loaded_vectorizer.transform(new_reviews).toarray()
+
+# 1. Prediksi menggunakan TF-IDF + SVM
+pred_svm_tfidf = loaded_svm_model_tfidf.predict(X_new_tfidf)
+
+# 2. Prediksi menggunakan TF-IDF + RandomForest
+pred_rf_tfidf = loaded_rf_model_tfidf.predict(X_new_tfidf)
+
+# 3. Prediksi menggunakan Word2Vec + RandomForest
+def get_word2vec_features(text):
+    words = text.split()
+    word_vectors = [loaded_w2v_model.wv[word] for word in words if word in loaded_w2v_model.wv]
     if len(word_vectors) == 0:
         return np.zeros(100)  # Sesuaikan dengan vector_size=100
     return np.mean(word_vectors, axis=0)
 
-# Menggunakan list comprehension dengan dtype=object agar bentuk array tidak bermasalah
-features_list = [get_word2vec_features(text) for text in clean_review_df['text_akhir']]
+# Ekstraksi fitur Word2Vec untuk review baru
+X_new_word2vec = np.vstack([get_word2vec_features(text) for text in new_reviews])
 
-# Konversi ke numpy array dengan vstack untuk memastikan bentuk (n_samples, vector_size)
-X = np.vstack(features_list)
-y = clean_review_df['label']
+# Prediksi menggunakan RandomForest dengan Word2Vec
+pred_rf_word2vec = loaded_rf_model_word2vec.predict(X_new_word2vec)
 
-# 2. Membagi Dataset (80% training, 20% testing)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Mapping Label Sentimen
+label_mapping = {0: "Negatif", 1: "Netral", 2: "Positif"}
 
-# 3. Model: RandomForestClassifier
-rf_model = RandomForestClassifier(n_estimators=100, random_state=42, class_weight='balanced')
-rf_model.fit(X_train, y_train)
-
-# 4. Evaluasi Model RandomForest
-y_pred_rf = rf_model.predict(X_test)
-accuracy_rf = accuracy_score(y_test, y_pred_rf)
-print("Akurasi Model (RandomForestClassifier):", accuracy_rf)
-print("\nLaporan Klasifikasi (Random Forest):\n", classification_report(y_test, y_pred_rf))
-
-# 5. Visualisasi Confusion Matrix
-plt.figure(figsize=(6, 5))
-cm_rf = confusion_matrix(y_test, y_pred_rf)
-sns.heatmap(cm_rf, annot=True, fmt='d', cmap='Oranges')
-plt.xlabel("Prediksi")
-plt.ylabel("Aktual")
-plt.title("Confusion Matrix - Random Forest dengan Word2Vec")
-plt.show()
+# ========================
+# MENAMPILKAN HASIL PREDIKSI
+# ========================
+for review, label_svm, label_rf_tfidf, label_rf_word2vec in zip(new_reviews, pred_svm_tfidf, pred_rf_tfidf, pred_rf_word2vec):
+    print(f"Review: {review}")
+    print(f"  Prediksi SVM + TF-IDF: {label_mapping[label_svm]}")
+    print(f"  Prediksi Random Forest + TF-IDF: {label_mapping[label_rf_tfidf]}")
+    print(f"  Prediksi Random Forest + Word2Vec: {label_mapping[label_rf_word2vec]}\n")
 
 """# Summary
 
-Setelah mengganti metode ekstraksi fitur dari TF-IDF ke Word2Vec, terlihat adanya perubahan signifikan pada performa model Random Forest Classifier (RFC).
+1. SVM dengan TF-IDF + SMOTE
 
-1. Perbandingan Akurasi
-    * Random Forest dengan Word2Vec memiliki akurasi 85.08%, yang lebih rendah dibandingkan TF-IDF (91.62%).
-    * Penurunan ini menunjukkan bahwa Word2Vec tidak menangkap fitur yang cukup informatif untuk model Random Forest dalam tugas klasifikasi ini.
-2. Analisis Precision, Recall, dan F1-Score
-    * Kelas 0 (label mayoritas) masih memiliki performa terbaik (precision: 82%, recall: 96%), tetapi terjadi penurunan recall pada kelas minoritas (1 dan 2).
-    * Kelas 1 mengalami penurunan recall dari 90% (TF-IDF) menjadi 77%, yang berarti banyak sampel dari kelas ini diklasifikasikan salah.
-    * Kelas 2 mengalami penurunan recall dari 80% menjadi 68%, yang menunjukkan kesulitan model dalam mengenali pola di kelas ini.
-3. Analisis Kesalahan dengan Confusion Matrix
-    * Kesalahan klasifikasi meningkat, terutama pada kelas 1 dan 2.
-    * Word2Vec yang menggunakan representasi berbasis rata-rata vektor kata mungkin kehilangan informasi penting, berbeda dengan TF-IDF yang tetap mempertahankan bobot berdasarkan kepentingan kata dalam dokumen.
-4. Penyebab Potensial Penurunan Performa
-    * Word2Vec bersifat lebih kontekstual, tetapi model Random Forest tidak memiliki mekanisme untuk memahami hubungan sekuensial antar kata.
-    * Informasi frekuensi kata hilang karena Word2Vec hanya mengambil mean dari embedding kata, yang bisa menyebabkan informasi spesifik untuk kategori tertentu menjadi kabur.
-    * Konteks sintaksis dan semantik mungkin tidak optimal karena Word2Vec lebih cocok untuk model berbasis deep learning seperti LSTM atau CNN dibandingkan model berbasis pohon keputusan seperti Random Forest.
-5. Kesimpulan Akhir dan Rekomendasi
-    * TF-IDF lebih unggul dibandingkan Word2Vec untuk model Random Forest, karena lebih efektif dalam merepresentasikan fitur teks dalam bentuk vektor numerik yang sesuai dengan pendekatan berbasis pohon keputusan.
-    * Jika tetap ingin menggunakan Word2Vec, lebih baik mengganti model Random Forest dengan model deep learning seperti LSTM, CNN, atau Transformer-based models yang lebih cocok untuk menangkap hubungan antar kata dalam embedding.
-    * Alternatif lain adalah mencoba pendekatan Hybrid TF-IDF + Word2Vec untuk melihat apakah kombinasi kedua teknik ini dapat meningkatkan performa model.
+    * Akurasi tertinggi di antara ketiga model, yaitu 92,26%.
+    * Performa precision, recall, dan f1-score yang merata di atas 0,90 untuk setiap kelas. Kelas 1 memiliki recall tertinggi (0,95), sedangkan kelas 2 memiliki precision tertinggi (0,94).
+    * Model ini menunjukkan kemampuan klasifikasi yang kuat dan seimbang, sehingga sangat efektif untuk memisahkan ketiga kelas sentimen.
+    * Berdasarkan diagram confusion matrix, jumlah misclassification cenderung sedikit salah memprediksi pada setiap kelas, khususnya kelas 0 dan kelas 2, sehingga menghasilkan akurasi keseluruhan yang lebih tinggi.
 
-Penggunaan Word2Vec sebagai representasi fitur dalam Random Forest tidak lebih baik dibandingkan TF-IDF, dengan akurasi yang lebih rendah dan kesalahan klasifikasi yang lebih tinggi. Untuk klasifikasi berbasis Random Forest, TF-IDF tetap menjadi pilihan yang lebih efektif.
+2. RandomForest dengan TF-IDF + SMOTE
+
+    * Mencapai akurasi 91,46%, sedikit di bawah SVM namun masih tergolong tinggi.
+    * Kelas 1 memiliki kinerja yang sangat baik dengan recall sebesar 0,96, menandakan model sangat handal dalam menangkap data pada kelas tersebut.
+    * Kelas 2 juga terklasifikasi cukup baik dengan precision 0,93, menandakan tingkat kesalahan prediksi yang rendah saat model memprediksi kelas 2.
+
+3. Confusion Matrix TF-IDF
+    * Dari segi jumlah misclassification, SVM cenderung lebih sedikit salah memprediksi pada setiap kelas, khususnya kelas 0 dan kelas 2, sehingga menghasilkan akurasi keseluruhan yang lebih tinggi.
+    * Meskipun kinerja SVM lebih baik di beberapa kelas, RandomForest terlihat cukup akurat dalam memprediksi kelas 1 (dengan sedikit kesalahan memprediksi ke kelas 0 atau 2).
+    * Namun, RandomForest mengalami lebih banyak misclassification pada kelas 0 dan kelas 2 dibandingkan SVM.
+    * Pada kedua model, kesalahan prediksi paling sering terjadi antara kelas 0 ↔ 1 dan 1 ↔ 2. Hal ini bisa menandakan bahwa teks pada kelas-kelas tersebut memiliki kemiripan tertentu (misalnya ekspresi netral dan positif, atau netral dan negatif), sehingga model terkadang kesulitan membedakannya.
+
+4. RandomForest dengan Word2Vec + SMOTE
+    * Akurasi 78,93%, lebih rendah dibandingkan dua model berbasis TF-IDF.
+    * Kelas 1 menunjukkan precision tertinggi (0,92), sementara kelas 0 memiliki recall tertinggi (0,85). Hal ini menunjukkan masih ada tantangan dalam menyeimbangkan performa antarkelas.
+    * Penggunaan Word2Vec mungkin memerlukan penyesuaian atau fine-tuning lebih lanjut agar dapat menangkap konteks dan karakteristik teks secara lebih optimal, khususnya dibandingkan pendekatan TF-IDF.
+
+5. Confusion Matrix Word2Vec
+    * Model bisa mengklasifikasikan sebagian besar sampel dengan benar, tetapi masih terdapat cukup banyak kesalahan prediksi, terutama untuk kelas 2.
+    * Model sering salah mengklasifikasikan kelas 2 sebagai kelas 0 (199 kasus) atau kelas 1 (40 kasus).
+    * Hal ini menunjukkan bahwa representasi fitur Word2Vec mungkin belum cukup membedakan teks di kelas 2 dengan kelas lain.
+    * Kelas 0 memiliki 897 prediksi benar, tetapi ada 121 kasus yang salah diklasifikasikan sebagai kelas 2.
+    * Ini menunjukkan kemungkinan beberapa teks di kelas 0 memiliki kemiripan dengan teks di kelas 2 menurut Word2Vec.
+    * Kelas 1 memiliki 156 kasus salah diprediksi sebagai kelas 0 dan 101 kasus salah diprediksi sebagai kelas 2.
+    * Ini menunjukkan bahwa Word2Vec mungkin masih mengalami kesulitan dalam membedakan nuansa dari kelas netral (1) dengan kelas lain.
 """
