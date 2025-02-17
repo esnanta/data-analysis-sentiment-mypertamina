@@ -47,7 +47,7 @@ Model machine learning yang digunakan dalam proyek ini:
 - **Kelas 1** memiliki recall tertinggi (**0,96**), menunjukkan model dapat menangkap data kelas ini dengan baik.
 - **Kelas 2** memiliki precision **0,93**, menandakan tingkat kesalahan prediksi yang rendah.
 
-### 3. Confusion Matrix TF-IDF
+### 3. Confusion Matrix TF-IDF SVM & RandomForest
 - **SVM lebih sedikit salah memprediksi** kelas **0 dan 2**, menghasilkan akurasi lebih tinggi.
 - **RandomForest lebih akurat dalam memprediksi kelas 1**, tetapi mengalami lebih banyak kesalahan pada kelas **0 dan 2**.
 - **Kesalahan prediksi sering terjadi antara kelas 0 ↔ 1 dan 1 ↔ 2**, menandakan kemiripan ekspresi antara sentimen netral dan positif/negatif.
@@ -59,7 +59,7 @@ Model machine learning yang digunakan dalam proyek ini:
 - **Kelas 1 memiliki precision tertinggi (0,92)**, sedangkan **kelas 0 memiliki recall tertinggi (0,85)**.
 - Word2Vec memerlukan **fine-tuning lebih lanjut** agar dapat menangkap konteks lebih baik dibandingkan TF-IDF.
 
-### 5. Confusion Matrix Word2Vec
+### 5. Confusion Matrix RandomForest + Word2Vec
 - Model masih mengalami **banyak misclassification**, terutama untuk kelas **2**.
 - Kelas 0: 902 sampel diklasifikasikan dengan benar.
 - Kelas 1: 920 sampel diklasifikasikan dengan benar.
