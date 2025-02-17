@@ -1,7 +1,7 @@
 # Sentimen Analisis MyPertamina
 
 Proyek ini merupakan bagian dari submission awal di alur belajar **Data Scientist** pada platform **Dicoding** dan merupakan bagian dari **IDCamp 2024 Level Menengah**. Tujuan dari proyek ini adalah mengembangkan **analisis sentimen**, sebagai bagian dari **klasifikasi teks**, untuk mengidentifikasi dan mengevaluasi opini, sikap, atau emosi yang terkandung dalam teks ulasan aplikasi **MyPertamina**.
-![Alt text](https://github.com/esnanta/data-analysis-sentiment-mypertamina/raw/master/image/sentiment_analysis_word_clouds.png)
+![Sentiment Analysis Word Clouds](https://github.com/esnanta/data-analysis-sentiment-mypertamina/blob/7a068c158104299e13bdf1a88d0980761d8918ac/image/sentiment_analysis_word_clouds.png?raw=true)
 
 
 ## Struktur Proyek
@@ -26,6 +26,9 @@ Proses preprocessing dilakukan untuk membersihkan dan menyiapkan data agar siap 
 2. Kolom target (label sentimen) adalah **text_akhir**.
 3. **Distribusi sentimen** dihitung untuk memastikan keseimbangan kelas dalam dataset.
 
+![Distribusi Sentimen](https://github.com/esnanta/data-analysis-sentiment-mypertamina/blob/65bceab3c68ba8795f28c1f2cd5625aad12d0f18/image/distribution_of_sentiment.png?raw=true)
+
+
 ### 5. Pelatihan Machine Learning
 Model machine learning yang digunakan dalam proyek ini:
 1. **Ekstraksi fitur menggunakan TF-IDF** (Term Frequency-Inverse Document Frequency)
@@ -49,6 +52,8 @@ Model machine learning yang digunakan dalam proyek ini:
 - **RandomForest lebih akurat dalam memprediksi kelas 1**, tetapi mengalami lebih banyak kesalahan pada kelas **0 dan 2**.
 - **Kesalahan prediksi sering terjadi antara kelas 0 ↔ 1 dan 1 ↔ 2**, menandakan kemiripan ekspresi antara sentimen netral dan positif/negatif.
 
+![Confusion Matrix TF-IDF](https://github.com/esnanta/data-analysis-sentiment-mypertamina/blob/65bceab3c68ba8795f28c1f2cd5625aad12d0f18/image/confusion_matrix_tf-idf_svm_rf.png?raw=true)
+
 ### 4. RandomForest dengan Word2Vec + SMOTE
 - **Akurasi lebih rendah** (78,93%) dibandingkan TF-IDF.
 - **Kelas 1 memiliki precision tertinggi (0,92)**, sedangkan **kelas 0 memiliki recall tertinggi (0,85)**.
@@ -56,10 +61,14 @@ Model machine learning yang digunakan dalam proyek ini:
 
 ### 5. Confusion Matrix Word2Vec
 - Model masih mengalami **banyak misclassification**, terutama untuk kelas **2**.
-- **Kelas 2 sering salah diklasifikasikan** sebagai kelas **0 (199 kasus) atau kelas 1 (40 kasus)**.
-- **Kelas 0 memiliki 897 prediksi benar**, tetapi ada **121 kasus salah diklasifikasikan sebagai kelas 2**.
-- **Kelas 1 memiliki 156 kasus salah diprediksi sebagai kelas 0 dan 101 kasus salah diprediksi sebagai kelas 2**.
-- **Word2Vec masih kesulitan membedakan nuansa sentimen netral (1) dengan kelas lain**.
+- Kelas 0: 902 sampel diklasifikasikan dengan benar.
+- Kelas 1: 920 sampel diklasifikasikan dengan benar.
+- Kelas 2: 640 sampel diklasifikasikan dengan benar.
+- Kelas 1 memiliki kesalahan yang cukup merata, salah diprediksi sebagai kelas 0 (149 kasus) dan kelas 2 (114 kasus).
+- Kelas 2 masih sering diklasifikasikan sebagai kelas 0 (211 kasus) dan kelas 1 (44 kasus).
+
+![Confusion Matrix Word2Vec](https://github.com/esnanta/data-analysis-sentiment-mypertamina/blob/65bceab3c68ba8795f28c1f2cd5625aad12d0f18/image/confusion_matrix_word2vec_rf.png?raw=true)
+
 
 ## Kesimpulan
 - **SVM dengan TF-IDF + SMOTE adalah model terbaik** untuk analisis sentimen ulasan MyPertamina dengan **akurasi 92,26%**.
