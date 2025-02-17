@@ -1,77 +1,86 @@
-# Bike Sharing Data Analysis
+# Sentimen Analisis MyPertamina
 
-This project provides an analysis of bike-sharing systems, specifically focusing on the Capital Bikeshare system in Washington D.C. It was completed as part of my study on the Dicoding platform. The dataset includes data from 2011 and 2012, covering both hourly and daily usage.
+Proyek ini merupakan bagian dari submission awal di alur belajar **Data Scientist** pada platform **Dicoding** dan merupakan bagian dari **IDCamp 2024 Level Menengah**. Tujuan dari proyek ini adalah mengembangkan **analisis sentimen**, sebagai bagian dari **klasifikasi teks**, untuk mengidentifikasi dan mengevaluasi opini, sikap, atau emosi yang terkandung dalam teks ulasan aplikasi **MyPertamina**.
 
-Explore the interactive dashboard to dive deeper into the analysis:  
-[Bike Sharing Data Analysis Dashboard](https://esnanta-bikesharing-analysis.streamlit.app/)
+## Struktur Proyek
 
-Kaggle Notebook:
-[Link](https://www.kaggle.com/code/nantaes/usage-patterns-user-type-peak-hours-anomalies)
+### 1. Import Library
+Proyek ini menggunakan berbagai library Python untuk **web scraping**, **pemrosesan teks**, dan **machine learning**.
 
-## Objective
-The primary objective of this project is to explore and analyze bike-sharing data to answer the following questions:
+### 2. Pengumpulan Data
+1. **Web scraping** dilakukan menggunakan **Google Play Scraper** untuk mengumpulkan ulasan aplikasi MyPertamina.
+2. Dataset yang digunakan memiliki **minimal 10.000 sampel**.
+3. **Pelabelan sentimen** dilakukan berdasarkan **leksikon Bahasa Indonesia** dengan tiga kelas sentimen: **positif, negatif, dan netral**.
 
-1. **How do bike rental patterns differ between casual and registered users?**
-2. **What times of the day experience the highest bike rental volumes for casual and registered users?**
-3. **Can anomalies or significant events (e.g., extreme weather or national holidays) be identified based on sudden spikes or drops in bike rentals (`cnt`)?**
-4. **How do rental behaviors vary across different time periods (morning, afternoon, evening, and night)?**
+### 3. Preprocessing Data
+Proses preprocessing dilakukan untuk membersihkan dan menyiapkan data agar siap digunakan dalam model machine learning. Langkah-langkahnya meliputi:
+1. **Cleaning data** (menghapus karakter khusus, emoji, dll.)
+2. **Case folding** (mengubah semua teks menjadi huruf kecil)
+3. **Tokenization** (memisahkan teks menjadi kata-kata)
+4. **Stopword Removal** (menghapus kata-kata yang tidak memiliki makna signifikan dalam analisis sentimen)
 
-## Dataset
-The dataset, `Bike-sharing-dataset.zip`, includes the following files:
+### 4. Pelabelan Data
+1. Digunakan **leksikon kata positif dan negatif** dalam **Bahasa Indonesia**.
+2. Kolom target (label sentimen) adalah **text_akhir**.
+3. **Distribusi sentimen** dihitung untuk memastikan keseimbangan kelas dalam dataset.
 
-- `day.csv`: Daily bike-sharing data.
-- `hour.csv`: Hourly bike-sharing data.
+### 5. Pelatihan Machine Learning
+Model machine learning yang digunakan dalam proyek ini:
+1. **Ekstraksi fitur menggunakan TF-IDF** (Term Frequency-Inverse Document Frequency)
+2. **Ekstraksi fitur menggunakan Word2Vec** (untuk menangkap hubungan semantik antar kata)
 
-### Notable Columns
-The dataset contains various variables that enable a detailed analysis of bike-sharing trends:
+## Hasil Analisis
 
-- **`casual`**: Count of casual users.
-- **`registered`**: Count of registered users.
-- **`cnt`**: Total bike rentals (casual + registered).
-- **`hr`**: Hour of the day (in the hourly dataset).
-- **`holiday`**: Indicator for national holidays (1 for holiday, 0 for non-holiday).
-- **`weathersit`**: Weather situation (e.g., clear, cloudy, rainy).
-- **`temp`**: Normalized temperature.
+### 1. Support Vector Machine (SVM) dengan TF-IDF + SMOTE
+- **Akurasi tertinggi** sebesar **92,26%**.
+- **Precision, recall, dan f1-score** rata-rata di atas **0,90** untuk setiap kelas.
+- **Kelas 1** memiliki recall tertinggi (**0,95**), sedangkan **kelas 2** memiliki precision tertinggi (**0,94**).
+- **Confusion Matrix:** Sedikit misclassification, terutama pada kelas **0 dan 2**.
 
-## Tools Used
-- **Python**: For data manipulation and analysis.
-- **Google Colab**: As the development environment for executing Python scripts.
-- **Pandas**: For efficient data processing.
-- **Matplotlib** and **Seaborn**: For creating insightful visualizations.
-- **Streamlit**: To build and deploy the interactive data analysis dashboard.
+### 2. RandomForest dengan TF-IDF + SMOTE
+- **Akurasi 91,46%**, sedikit di bawah SVM namun masih tinggi.
+- **Kelas 1** memiliki recall tertinggi (**0,96**), menunjukkan model dapat menangkap data kelas ini dengan baik.
+- **Kelas 2** memiliki precision **0,93**, menandakan tingkat kesalahan prediksi yang rendah.
 
-## Analysis Highlights
-1. **User Patterns**: Analyzed the rental behaviors of casual and registered users to identify trends.
-2. **Peak Hours**: Identified peak rental hours for both user types based on hourly data.
-3. **Anomalies and Events**: Investigated anomalies, such as extreme weather or holidays, to determine their impact on bike rentals.
-4. **Clustering Analysis**: Grouped rental behaviors into distinct time periods (Morning, Afternoon, Evening, Night) to uncover differences in user activity.
+### 3. Confusion Matrix TF-IDF
+- **SVM lebih sedikit salah memprediksi** kelas **0 dan 2**, menghasilkan akurasi lebih tinggi.
+- **RandomForest lebih akurat dalam memprediksi kelas 1**, tetapi mengalami lebih banyak kesalahan pada kelas **0 dan 2**.
+- **Kesalahan prediksi sering terjadi antara kelas 0 ↔ 1 dan 1 ↔ 2**, menandakan kemiripan ekspresi antara sentimen netral dan positif/negatif.
 
-## Clustering Analysis by Time Period
-To better understand bike rental behaviors across the day, the dataset was grouped into four time periods:
+### 4. RandomForest dengan Word2Vec + SMOTE
+- **Akurasi lebih rendah** (78,93%) dibandingkan TF-IDF.
+- **Kelas 1 memiliki precision tertinggi (0,92)**, sedangkan **kelas 0 memiliki recall tertinggi (0,85)**.
+- Word2Vec memerlukan **fine-tuning lebih lanjut** agar dapat menangkap konteks lebih baik dibandingkan TF-IDF.
 
-- **Morning (5:00 AM - 11:00 AM)**  
-- **Afternoon (12:00 PM - 4:00 PM)**  
-- **Evening (5:00 PM - 8:00 PM)**  
-- **Night (9:00 PM - 4:00 AM)**  
+### 5. Confusion Matrix Word2Vec
+- Model masih mengalami **banyak misclassification**, terutama untuk kelas **2**.
+- **Kelas 2 sering salah diklasifikasikan** sebagai kelas **0 (199 kasus) atau kelas 1 (40 kasus)**.
+- **Kelas 0 memiliki 897 prediksi benar**, tetapi ada **121 kasus salah diklasifikasikan sebagai kelas 2**.
+- **Kelas 1 memiliki 156 kasus salah diprediksi sebagai kelas 0 dan 101 kasus salah diprediksi sebagai kelas 2**.
+- **Word2Vec masih kesulitan membedakan nuansa sentimen netral (1) dengan kelas lain**.
 
-### Key Findings:
-- During holidays, **casual users** dominate rental activity across all time periods, with the highest activity in the Evening and Night.  
-- Registered users are more active during workdays and primarily during Morning and Evening commute hours.  
-- Nighttime rentals are generally lower but show a higher proportion of casual users during holidays.
+## Kesimpulan
+- **SVM dengan TF-IDF + SMOTE adalah model terbaik** untuk analisis sentimen ulasan MyPertamina dengan **akurasi 92,26%**.
+- **RandomForest dengan TF-IDF** memiliki performa yang hampir setara dengan SVM (**91,46%**), tetapi lebih banyak kesalahan pada kelas tertentu.
+- **Word2Vec memerlukan penyesuaian lebih lanjut**, karena hasilnya masih di bawah TF-IDF dalam menangkap pola sentimen dari teks ulasan.
 
-## Insights
-1. **User Segmentation**:
-   - Casual users are more likely to rent bikes on weekends and holidays for leisure purposes.
-   - Registered users consistently use bikes as part of their daily commute.
-2. **Time-Based Trends**:
-   - The Evening period exhibits the highest rental activity for both user groups, particularly during holidays.
-   - Morning rentals are predominantly made by registered users for work commutes.
-3. **Impact of Events**:
-   - Weather conditions and holidays significantly influence rental patterns, causing spikes or drops in the number of rentals.
-4. **Optimization Opportunities**:
-   - Bikes and infrastructure can be better distributed to accommodate demand surges during Evening and Night periods, particularly on holidays.
+## Teknologi yang Digunakan
+- **Python** (pandas, numpy, scikit-learn, TensorFlow, gensim, Sastrawi, Google Play Scraper)
+- **Google Colab** untuk eksperimen dan training model
 
-## How to Run the Analysis
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/esnanta/data-analysis.git
+---
+
+## Cara Menjalankan Proyek
+1. Clone repositori ini:
+   ```sh
+   git clone https://github.com/username/sentiment-analysis-mypertamina.git
+   ```
+2. Install dependensi yang dibutuhkan:
+   ```sh
+   pip install -r requirements.txt
+   ```
+3. Jalankan notebook **sentiment_analysis.ipynb** di Google Colab atau Jupyter Notebook.
+
+## Lisensi
+Proyek ini dilisensikan di bawah **MIT License**.
+
