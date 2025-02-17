@@ -1,6 +1,8 @@
 # Sentimen Analisis MyPertamina
 
 Proyek ini merupakan bagian dari submission awal di alur belajar **Data Scientist** pada platform **Dicoding** dan merupakan bagian dari **IDCamp 2024 Level Menengah**. Tujuan dari proyek ini adalah mengembangkan **analisis sentimen**, sebagai bagian dari **klasifikasi teks**, untuk mengidentifikasi dan mengevaluasi opini, sikap, atau emosi yang terkandung dalam teks ulasan aplikasi **MyPertamina**.
+![Alt text](https://github.com/esnanta/data-analysis-sentiment-mypertamina/raw/master/image/sentiment_analysis_word_clouds.png)
+
 
 ## Struktur Proyek
 
