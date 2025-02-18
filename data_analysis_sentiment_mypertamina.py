@@ -399,13 +399,13 @@ plt.show()
 """
 
 # 1. Ekstraksi Fitur dengan TF-IDF dengan parameter yang diperbarui
-vectorizer = TfidfVectorizer(ngram_range=(1,2), max_features=5000, min_df=5)
+vectorizer = TfidfVectorizer(ngram_range=(1, 2), max_features=5000, min_df=5)
 X = vectorizer.fit_transform(clean_review_df['text_akhir'])
 y = clean_review_df['label']
 
 # 2. Bagi dataset menjadi training dan testing
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y  # stratify disarankan jika ingin pembagian kelas seimbang
+    X, y, test_size=0.2, random_state=42, stratify=y
 )
 
 # 3. Karena X_train berupa sparse matrix, konversi ke dense untuk SMOTE
@@ -423,38 +423,54 @@ X_test_dense = X_test.toarray()
 svm_model_tfidf = SVC(kernel='linear', class_weight='balanced', random_state=42)
 svm_model_tfidf.fit(X_train_res, y_train_res)
 
-# 7. Evaluasi Model SVM
-y_pred_svm = svm_model_tfidf.predict(X_test_dense)
-accuracy_svm = accuracy_score(y_test, y_pred_svm)
-print("Akurasi Model (SVM) dengan SMOTE:", accuracy_svm)
-print("\nLaporan Klasifikasi (SVM) dengan SMOTE:\n", classification_report(y_test, y_pred_svm))
+# Evaluasi pada Training Dataset
+y_pred_svm_train = svm_model_tfidf.predict(X_train_res)
+accuracy_svm_train = accuracy_score(y_train_res, y_pred_svm_train)
+print("Akurasi Model (SVM) pada Training dengan SMOTE:", accuracy_svm_train)
+print("\nLaporan Klasifikasi (SVM) pada Training dengan SMOTE:\n", 
+      classification_report(y_train_res, y_pred_svm_train))
+
+# Evaluasi pada Testing Dataset
+y_pred_svm_test = svm_model_tfidf.predict(X_test_dense)
+accuracy_svm_test = accuracy_score(y_test, y_pred_svm_test)
+print("Akurasi Model (SVM) pada Testing dengan SMOTE:", accuracy_svm_test)
+print("\nLaporan Klasifikasi (SVM) pada Testing dengan SMOTE:\n", 
+      classification_report(y_test, y_pred_svm_test))
 
 # --- Evaluasi Model RandomForest ---
-# 8. Model RandomForest dengan class_weight='balanced'
+# 7. Model RandomForest dengan class_weight='balanced'
 rf_model_tfidf = RandomForestClassifier(n_estimators=400, random_state=42, class_weight='balanced')
 rf_model_tfidf.fit(X_train_res, y_train_res)
 
-# 9. Evaluasi Model RandomForest
-y_pred_rf = rf_model_tfidf.predict(X_test_dense)
-accuracy_rf = accuracy_score(y_test, y_pred_rf)
-print("Akurasi Model (RandomForest) dengan SMOTE:", accuracy_rf)
-print("\nLaporan Klasifikasi (RandomForest) dengan SMOTE:\n", classification_report(y_test, y_pred_rf))
+# Evaluasi pada Training Dataset
+y_pred_rf_train = rf_model_tfidf.predict(X_train_res)
+accuracy_rf_train = accuracy_score(y_train_res, y_pred_rf_train)
+print("Akurasi Model (RandomForest) pada Training dengan SMOTE:", accuracy_rf_train)
+print("\nLaporan Klasifikasi (RandomForest) pada Training dengan SMOTE:\n", 
+      classification_report(y_train_res, y_pred_rf_train))
 
-# --- Menampilkan Confusion Matrix secara berdampingan ---
-cm_svm = confusion_matrix(y_test, y_pred_svm)
-cm_rf = confusion_matrix(y_test, y_pred_rf)
+# Evaluasi pada Testing Dataset
+y_pred_rf_test = rf_model_tfidf.predict(X_test_dense)
+accuracy_rf_test = accuracy_score(y_test, y_pred_rf_test)
+print("Akurasi Model (RandomForest) pada Testing dengan SMOTE:", accuracy_rf_test)
+print("\nLaporan Klasifikasi (RandomForest) pada Testing dengan SMOTE:\n", 
+      classification_report(y_test, y_pred_rf_test))
+
+# --- Menampilkan Confusion Matrix secara berdampingan untuk Testing Dataset ---
+cm_svm = confusion_matrix(y_test, y_pred_svm_test)
+cm_rf = confusion_matrix(y_test, y_pred_rf_test)
 
 fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
-# Confusion Matrix untuk Model SVM
+# Confusion Matrix untuk Model SVM pada Testing Dataset
 sns.heatmap(cm_svm, annot=True, fmt='d', cmap='Blues', ax=axes[0])
-axes[0].set_title("Confusion Matrix - SVM + TF-IDF")
+axes[0].set_title("Confusion Matrix - SVM + TF-IDF (Testing)")
 axes[0].set_xlabel("Prediksi")
 axes[0].set_ylabel("Aktual")
 
-# Confusion Matrix untuk Model RandomForest
+# Confusion Matrix untuk Model RandomForest pada Testing Dataset
 sns.heatmap(cm_rf, annot=True, fmt='d', cmap='Oranges', ax=axes[1])
-axes[1].set_title("Confusion Matrix - RandomForest + TF-IDF")
+axes[1].set_title("Confusion Matrix - RandomForest + TF-IDF (Testing)")
 axes[1].set_xlabel("Prediksi")
 axes[1].set_ylabel("Aktual")
 
@@ -481,7 +497,7 @@ y = clean_review_df['label']
 # 2. Bagi dataset menjadi training dan testing
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# 3. Terapkan SMOTE pada data training (Word2Vec sudah dense)
+# 3. Terapkan SMOTE pada data training (Word2Vec sudah berupa data dense)
 smote = SMOTE(random_state=42)
 X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
 
@@ -489,17 +505,23 @@ X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
 rf_model_word2vec = RandomForestClassifier(n_estimators=100, random_state=42, class_weight='balanced')
 rf_model_word2vec.fit(X_train_res, y_train_res)
 
-# 5. Evaluasi Model RandomForest dengan Word2Vec
-y_pred_rf = rf_model_word2vec.predict(X_test)
-accuracy_rf = accuracy_score(y_test, y_pred_rf)
-print("Akurasi Model (RandomForest dengan Word2Vec & SMOTE):", accuracy_rf)
-print("\nLaporan Klasifikasi (RandomForest dengan Word2Vec & SMOTE):\n", classification_report(y_test, y_pred_rf))
+# --- Evaluasi pada Training Dataset ---
+y_pred_rf_train = rf_model_word2vec.predict(X_train_res)
+accuracy_rf_train = accuracy_score(y_train_res, y_pred_rf_train)
+print("Akurasi Model (RandomForest dengan Word2Vec & SMOTE) pada Training:", accuracy_rf_train)
+print("\nLaporan Klasifikasi (Training):\n", classification_report(y_train_res, y_pred_rf_train))
 
-# Tambahkan Confusion Matrix
-cm_rf = confusion_matrix(y_test, y_pred_rf)
-plt.figure(figsize=(6,5))
+# --- Evaluasi pada Testing Dataset ---
+y_pred_rf_test = rf_model_word2vec.predict(X_test)
+accuracy_rf_test = accuracy_score(y_test, y_pred_rf_test)
+print("Akurasi Model (RandomForest dengan Word2Vec & SMOTE) pada Testing:", accuracy_rf_test)
+print("\nLaporan Klasifikasi (Testing):\n", classification_report(y_test, y_pred_rf_test))
+
+# --- Confusion Matrix untuk Testing Dataset ---
+cm_rf = confusion_matrix(y_test, y_pred_rf_test)
+plt.figure(figsize=(6, 5))
 sns.heatmap(cm_rf, annot=True, fmt='d', cmap='Oranges')
-plt.title("Confusion Matrix - RandomForest + Word2Vec")
+plt.title("Confusion Matrix - RandomForest + Word2Vec (Testing)")
 plt.xlabel("Prediksi")
 plt.ylabel("Aktual")
 plt.show()

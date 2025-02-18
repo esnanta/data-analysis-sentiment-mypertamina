@@ -1,0 +1,4 @@
+1. Saat menghapus data yang hilang, sebaiknya pertimbangkan untuk menghapus data duplikat hanya pada subset tertentu, bukan secara keseluruhan dari dataset, agar tidak menghapus terlalu banyak baris yang masih relevan.
+df = df.dropna(subset=['content'])
+
+2. See : https://www.dicoding.com/academysubmissions/4006738
