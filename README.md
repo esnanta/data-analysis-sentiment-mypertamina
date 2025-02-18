@@ -60,12 +60,7 @@ Model machine learning yang digunakan dalam proyek ini:
 - Word2Vec memerlukan **fine-tuning lebih lanjut** agar dapat menangkap konteks lebih baik dibandingkan TF-IDF.
 
 ### 5. Confusion Matrix RandomForest + Word2Vec
-- Model masih mengalami **banyak misclassification**, terutama untuk kelas **2**.
-- Kelas 0: 902 sampel diklasifikasikan dengan benar.
-- Kelas 1: 920 sampel diklasifikasikan dengan benar.
-- Kelas 2: 640 sampel diklasifikasikan dengan benar.
-- Kelas 1 memiliki kesalahan yang cukup merata, salah diprediksi sebagai kelas 0 (149 kasus) dan kelas 2 (114 kasus).
-- Kelas 2 masih sering diklasifikasikan sebagai kelas 0 (211 kasus) dan kelas 1 (44 kasus).
+- Model masih mengalami **banyak misclassification**.
 
 ![Confusion Matrix Word2Vec](https://github.com/esnanta/data-analysis-sentiment-mypertamina/blob/65bceab3c68ba8795f28c1f2cd5625aad12d0f18/image/confusion_matrix_word2vec_rf.png?raw=true)
 
