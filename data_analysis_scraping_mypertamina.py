@@ -7,7 +7,7 @@ Original file is located at
     https://colab.research.google.com/drive/1A03j76in3jf7h1blX9bNw_OnN6ZoMxbq
 """
 
-#!pip install google-play-scraper
+# !pip install google-play-scraper
 from google_play_scraper import app, reviews, Sort, reviews_all
 # from google.colab import files
 import pandas as pd
@@ -18,7 +18,7 @@ scrapreview = reviews_all(
     lang='id',  # Bahasa ulasan
     country='id',  # Negara
     sort=Sort.MOST_RELEVANT,  # Urutan ulasan
-    count=20000  # Maksimum jumlah ulasan yang diambil
+    count=10000  # Maksimum jumlah ulasan yang diambil
 )
 
 # Konversi hasil scraping ke DataFrame
@@ -26,4 +26,5 @@ reviews_df = pd.DataFrame(scrapreview)
 reviews_df.to_csv(csv_filename, index=False, encoding="utf-8")
 # files.download('mypertamina_reviews.csv')
 
+reviews_df.info()
 reviews_df.head()

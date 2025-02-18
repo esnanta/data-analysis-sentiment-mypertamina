@@ -81,68 +81,13 @@ from imblearn.over_sampling import SMOTE
 3. Pemberian label kelas sentimen berdasarkan leksikon Bahasa Indonesia (positif, negatif, netral).
 
 """
-
 # 2. Data Gathering
 # URL file CSV di GitHub
 github_url = "https://raw.githubusercontent.com/esnanta/data-analysis-sentiment-mypertamina/main/dataset/mypertamina_reviews.csv"
-csv_filename = "mypertamina_reviews.csv"
+# Membaca CSV langsung dari URL menjadi DataFrame
+reviews_df = pd.read_csv(github_url, encoding="utf-8")
 
-# Coba mengunduh file dari GitHub
-def download_csv_from_github(url, filename):
-    try:
-        response = requests.get(url)
-        response.raise_for_status()  # Cek jika terjadi error dalam request
-        with open(filename, "wb") as file:
-            file.write(response.content)
-        print(f"✅ File '{filename}' berhasil diunduh dari GitHub.")
-        return True
-    except requests.exceptions.RequestException as e:
-        print(f"⚠️ Gagal mengunduh file dari GitHub: {e}")
-        return False
-
-# Cek apakah file ada secara lokal atau coba unduh dari GitHub
-if os.path.exists(csv_filename) or download_csv_from_github(github_url, csv_filename):
-    print(f"📂 Menggunakan file '{csv_filename}'...")
-    try:
-        reviews_df = pd.read_csv(csv_filename, encoding="utf-8")
-
-        # Pastikan dataset memiliki minimal 10.000 sampel
-        if len(reviews_df) >= 10000:
-            print("✅ Dataset memenuhi syarat: >= 10.000 sampel.")
-        else:
-            print("⚠️ Dataset kurang dari 10.000 sampel. Perlu scraping ulang...")
-            reviews_df = None  # Kosongkan dataframe untuk memicu scraping ulang
-    except Exception as e:
-        print(f"⚠️ Gagal membaca file CSV: {e}")
-        reviews_df = None  # Jika error saat membaca, lakukan scraping ulang
-else:
-    print(f"❌ File '{csv_filename}' tidak ditemukan dan tidak bisa diunduh.")
-    reviews_df = None  # Jika gagal mengunduh, lakukan scraping ulang
-
-# Jika dataset tidak ada atau tidak memenuhi syarat, lakukan scraping ulang
-if reviews_df is None or len(reviews_df) < 10000:
-    print("🔄 Melakukan scraping ulang dari Google Play Store...")
-    scrapreview = reviews_all(
-        'com.dafturn.mypertamina',  # ID aplikasi
-        lang='id',                  # Bahasa ulasan
-        country='id',               # Negara
-        sort=Sort.MOST_RELEVANT,    # Urutan ulasan
-        count=20000                 # Maksimum jumlah ulasan yang diambil
-    )
-
-
-    # Konversi hasil scraping ke DataFrame
-    reviews_df = pd.DataFrame(scrapreview)
-
-    # Pastikan dataset memiliki minimal 10.000 sampel
-    if len(reviews_df) >= 10000:
-        print("✅ Dataset memenuhi syarat: >= 10.000 sampel. Menyimpan ke CSV...")
-        reviews_df.to_csv(csv_filename, index=False, encoding="utf-8")
-        # files.download('mypertamina_reviews.csv')
-    else:
-        print("❌ Dataset tidak memenuhi syarat. Scraping gagal menghasilkan cukup data.")
-
-# Tampilkan beberapa baris pertama
+# Tampilkan beberapa baris pertama untuk verifikasi
 reviews_df.head()
 
 # Tampilkan info data
