@@ -1,6 +1,6 @@
 # Sentimen Analisis MyPertamina
 
-Program ini merupakan submission alur belajar **Data Scientist** pada platform **Dicoding** dan bagian dari **IDCamp 2024 Level Menengah**. Analisis ini bertujuan mengetahui sentimen menggunakan klasifikasi teks untuk mengidentifikasi dan mengevaluasi opini, sikap, atau emosi yang terkandung dalam teks ulasan aplikasi MyPertamina.
+Program ini merupakan submission alur belajar **Data Scientist** pada platform **Dicoding** dan bagian dari **IDCamp 2024 Level Menengah**. Analisis ini bertujuan mengetahui sentimen menggunakan klasifikasi teks untuk mengidentifikasi dan mengevaluasi opini, sikap, atau emosi yang terkandung dalam teks ulasan aplikasi **MyPertamina**.
 
 ![Sentiment Analysis Word Clouds](https://github.com/esnanta/data-analysis-sentiment-mypertamina/blob/7a068c158104299e13bdf1a88d0980761d8918ac/image/sentiment_analysis_word_clouds.png?raw=true)
 
