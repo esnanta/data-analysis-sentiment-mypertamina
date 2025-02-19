@@ -24,7 +24,7 @@ Proses preprocessing dilakukan untuk membersihkan dan menyiapkan data agar siap 
 
 ### 4. Pelabelan Data
 1. Digunakan **leksikon kata positif dan negatif** dalam **Bahasa Indonesia**.
-2. Kolom target (label sentimen) adalah **text_akhir**.
+2. Kolom target (label sentimen) adalah **content** yang telah diproses menjadi **text_akhir**.
 3. **Distribusi sentimen** dihitung untuk memastikan keseimbangan kelas dalam dataset.
 
 ![Distribusi Sentimen](https://github.com/esnanta/data-analysis-sentiment-mypertamina/blob/65bceab3c68ba8795f28c1f2cd5625aad12d0f18/image/distribution_of_sentiment.png?raw=true)
