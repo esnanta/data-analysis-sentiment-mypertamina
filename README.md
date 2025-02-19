@@ -5,10 +5,10 @@ Program ini merupakan submission alur belajar **Data Scientist** pada platform *
 ![Sentiment Analysis Word Clouds](https://github.com/esnanta/data-analysis-sentiment-mypertamina/blob/7a068c158104299e13bdf1a88d0980761d8918ac/image/sentiment_analysis_word_clouds.png?raw=true)
 
 
-## Struktur Proyek
+## Struktur Program
 
 ### 1. Import Library
-Proyek ini menggunakan berbagai library Python untuk **web scraping**, **pemrosesan teks**, dan **machine learning**.
+Program ini menggunakan berbagai library Python untuk **web scraping**, **pemrosesan teks**, dan **machine learning**.
 
 ### 2. Pengumpulan Data
 1. **Web scraping** dilakukan menggunakan **Google Play Scraper** untuk mengumpulkan ulasan aplikasi MyPertamina.
@@ -29,6 +29,7 @@ Proses preprocessing dilakukan untuk membersihkan dan menyiapkan data agar siap 
 
 ![Distribusi Sentimen](https://github.com/esnanta/data-analysis-sentiment-mypertamina/blob/65bceab3c68ba8795f28c1f2cd5625aad12d0f18/image/distribution_of_sentiment.png?raw=true)
 
+Distribusi menunjukkan bahwa persepsi pengguna terhadap MyPertamina cenderung beragam, dengan mayoritas ulasan bersifat netral hingga negatif. Hal ini bisa menjadi masukan bagi pengembang aplikasi untuk meningkatkan pengalaman pengguna agar lebih banyak ulasan positif di masa mendatang.
 
 ### 5. Pelatihan Machine Learning
 Model machine learning yang digunakan dalam proyek ini:
@@ -77,7 +78,7 @@ Model machine learning yang digunakan dalam proyek ini:
 
 ---
 
-## Cara Menjalankan Proyek
+## Cara Menjalankan Program
 1. Clone repositori ini:
    ```sh
    git clone https://github.com/username/sentiment-analysis-mypertamina.git
