@@ -34,7 +34,7 @@ Distribusi menunjukkan bahwa persepsi pengguna terhadap MyPertamina cenderung be
 ### 5. Pelatihan Machine Learning
 Model machine learning yang digunakan dalam proyek ini:
 1. **Ekstraksi fitur menggunakan TF-IDF** (Term Frequency-Inverse Document Frequency)
-2. **Ekstraksi fitur menggunakan Word2Vec** (untuk menangkap hubungan semantik antar kata)
+2. **Ekstraksi fitur menggunakan Word2Vec** 
 
 ## Hasil Analisis
 
